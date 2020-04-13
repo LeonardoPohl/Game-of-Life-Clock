@@ -71,7 +71,7 @@ def generate_array():
     time_arr_tmp = np.zeros((max_height, max_width))
     for c in str(timestamp_tmp):
         height_array = np.zeros((max_height - char_dict[c].shape[0], char_dict[c].shape[1]))
-        width_array = np.split(np.zeros((max_height, max_width - char_dict[c].shape[1])), 2)
+        width_array = np.array_split(np.zeros((max_height, max_width - char_dict[c].shape[1])), 2)
         try:
             char_dict[c] = np.concatenate((height_array, char_dict[c]))
         except:
@@ -125,12 +125,12 @@ def x_zoom(x):
 
 
 font = font_select()
-char_dict = create_char_dict("0123456789.:Uhr ", font, 25)
+char_dict = create_char_dict("0123456789.:Uhr ", font, 20)
 time_str = '%H:%M Uhr'
 zoom_factor = 3
-ticks_per_seconds = 30
+ticks_per_seconds = 10
 transition_frames = 5
-padding = 10
+padding = 5
 
 max_height = 0
 max_width = 0
