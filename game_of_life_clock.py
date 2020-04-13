@@ -1,6 +1,5 @@
 import copy
 import os
-import platform
 import time
 
 import pygame
@@ -14,7 +13,7 @@ def char_to_pixels(text, path='arialbd.ttf', fontsize=14):
     """
     Based on https://stackoverflow.com/a/27753869/190597 (jsheperd)
     """
-    font = ImageFont.truetype(path, fontsize)
+    font = ImageFont.truetype(os.path.relpath("./fonts")+"/"+path, fontsize)
     w, h = font.getsize(text)
     h *= 2
     image = Image.new('L', (w, h), 1)
@@ -68,7 +67,7 @@ def split_list(a_list):
 
 def generate_array():
     timestamp_tmp = time.strftime(time_str)
-    time_arr_tmp = np.zeros((max_height, max_width))
+    time_arr_tmp = np.zeros((max_height, 0))
     for c in str(timestamp_tmp):
         height_array = np.zeros((max_height - char_dict[c].shape[0], char_dict[c].shape[1]))
         width_array = np.array_split(np.zeros((max_height, max_width - char_dict[c].shape[1])), 2)
@@ -89,8 +88,8 @@ def generate_array():
 
 def font_select():
     fonts = []
-    for filename in os.listdir("./fonts"):
-        fonts.append("./fonts/" + filename)
+    for filename in os.listdir(os.path.relpath("./fonts")):
+        fonts.append(filename)
 
     print("")
     i = 1
@@ -130,7 +129,7 @@ time_str = '%H:%M Uhr'
 zoom_factor = 3
 ticks_per_seconds = 10
 transition_frames = 5
-padding = 5
+padding = 10
 
 max_height = 0
 max_width = 0
