@@ -1,9 +1,9 @@
 import copy
-import datetime
-import string
+import os
+import platform
 import time
-import pygame
 
+import pygame
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
@@ -61,151 +61,124 @@ def game_of_life_step(arr):
     return arr_tmp
 
 
-num_dict = {}
-font_dict = {
-    'LiberationSerif-Bold.ttf': '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
-    'Ubuntu-R.ttf': '/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf',
-    'NotoSerifCJK-Regular.ttc': '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc'
-}
-time_str = '%H.%M Uhr'
-for c in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ':', 'U', 'h', 'r', ' ', 'H', 'i', 'M', 'a', 'e']:
-    arr = char_to_pixels(
-        c,
-        path=font_dict['Ubuntu-R.ttf'],
-        fontsize=100)
-    num_dict[c] = arr
+def split_list(a_list):
+    half = len(a_list) // 2
+    return a_list[:half], a_list[half:]
+
+
+def generate_array():
+    timestamp_tmp = time.strftime(time_str)
+    time_arr_tmp = np.zeros((max_height, max_width))
+    for c in str(timestamp_tmp):
+        height_array = np.zeros((max_height - char_dict[c].shape[0], char_dict[c].shape[1]))
+        width_array = np.split(np.zeros((max_height, max_width - char_dict[c].shape[1])), 2)
+        try:
+            char_dict[c] = np.concatenate((height_array, char_dict[c]))
+        except:
+            pass
+
+        try:
+            char_dict[c] = np.concatenate((width_array[0], char_dict[c]), axis=1)
+            char_dict[c] = np.concatenate((char_dict[c], width_array[1]), axis=1)
+        except:
+            pass
+
+        time_arr_tmp = np.concatenate((time_arr_tmp, char_dict[c]), axis=1)
+    return np.pad(time_arr_tmp, padding), timestamp_tmp
+
+
+def font_select():
+    fonts = []
+    for filename in os.listdir("./fonts"):
+        fonts.append("./fonts/" + filename)
+
+    print("")
+    i = 1
+    for font in fonts:
+        print(str(i) + " " + str(font))
+        i += 1
+
+    while True:
+        conf_select = int(
+            input("Choose a previous configuration or create a new one(" + str(1) + "-" + str(i - 1) + "):"))
+        if conf_select >= 1 or conf_select < i:
+            return fonts[conf_select - 1]
+        else:
+            print("[ERROR] Selected Number is out of range")
+
+
+def create_char_dict(char_arr, font_path, fontsize):
+    tmp_dict = {}
+    for c in char_arr:
+        arr = char_to_pixels(
+            c,
+            path=font_path,
+            fontsize=fontsize)
+        tmp_dict[c] = arr
+    return tmp_dict
+
+
+def x_zoom(x):
+    for _ in range(zoom_factor):
+        x = pygame.transform.scale2x(x)
+    return x
+
+
+font = font_select()
+char_dict = create_char_dict("0123456789.:Uhr ", font, 25)
+time_str = '%H:%M Uhr'
+zoom_factor = 3
+ticks_per_seconds = 30
+transition_frames = 5
+padding = 10
 
 max_height = 0
-for num in num_dict.values():
+max_width = 0
+for num in char_dict.values():
     max_height = int(num.shape[0] if num.shape[0] > max_height else max_height)
+    max_width = int(num.shape[1] if num.shape[1] > max_width else max_width)
 
-timestamp = time.strftime(time_str)
-time_arr = np.array([0 for i in range(max_height)])
-time_arr = time_arr.reshape((max_height, 1))
-
-for c in str(timestamp):
-    tmp_arr = np.array(
-        [[0 for i in range(num_dict[c].shape[1])] for j in range(max_height - num_dict[c].shape[0])])
-    try:
-        num_dict[c] = np.concatenate((tmp_arr, num_dict[c]))
-    except:
-        pass
-    time_arr = np.concatenate((time_arr, num_dict[c]), axis=1)
-    time_arr = np.concatenate((time_arr, np.array([[0] for x in range(max_height)])), axis=1)
-time_arr = np.pad(time_arr, 5)
+time_arr, timestamp = generate_array()
 arr_step = copy.deepcopy(time_arr)
 
 pygame.init()
-display = pygame.display.set_mode(arr_step.shape)
-surf = pygame.surfarray.make_surface(arr_step)
-
+display = pygame.display.set_mode([2**zoom_factor * x for x in arr_step.shape[::-1]])
 running = True
 
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    print(
-        '______________________________________________________________________________________________________________')
-    time.sleep(1)
 
     if time.strftime(time_str) != timestamp:
-        timestamp = time.strftime(time_str)
-        time_arr = np.array([0 for i in range(max_height)])
-        time_arr = time_arr.reshape((max_height, 1))
-
-        for c in str(timestamp):
-            tmp_arr = np.array(
-                [[0 for i in range(num_dict[c].shape[1])] for j in range(max_height - num_dict[c].shape[0])])
-            try:
-                num_dict[c] = np.concatenate((tmp_arr, num_dict[c]))
-            except:
-                pass
-            time_arr = np.concatenate((time_arr, num_dict[c]), axis=1)
-            time_arr = np.concatenate((time_arr, np.array([[0] for x in range(max_height)])), axis=1)
-        time_arr = np.pad(time_arr, 5)
+        time_arr, timestamp = generate_array()
         if arr_step.size != 0:
             arr_step = arr_step + time_arr
             arr_step = np.where(arr_step, 1, 0)
         else:
             arr_step = copy.deepcopy(time_arr)
-
-        display(arr_step)
-
-    arr_step = game_of_life_step(arr_step)
-    for row in arr_step:
-        pass  # print(row)
-    #display(arr_step, time_arr)
-
-    surf = pygame.surfarray.make_surface(arr_step)
-    display.blit(surf, (0, 0))
-    pygame.display.update()
-#timestamp = None
-#arr_step = np.array([])
-#time_arr = np.array([])
-
-while True:
-    print(
-        '______________________________________________________________________________________________________________')
-    time.sleep(1)
-
-    if time.strftime(time_str) != timestamp:
-        timestamp = time.strftime(time_str)
-        time_arr = np.array([0 for i in range(max_height)])
-        time_arr = time_arr.reshape((max_height, 1))
-
-        for c in str(timestamp):
-            tmp_arr = np.array(
-                [[0 for i in range(num_dict[c].shape[1])] for j in range(max_height - num_dict[c].shape[0])])
-            try:
-                num_dict[c] = np.concatenate((tmp_arr, num_dict[c]))
-            except:
-                pass
-            time_arr = np.concatenate((time_arr, num_dict[c]), axis=1)
-            time_arr = np.concatenate((time_arr, np.array([[0] for x in range(max_height)])), axis=1)
-        time_arr = np.pad(time_arr, 5)
-        if arr_step.size != 0:
-            arr_step = arr_step + time_arr
-            arr_step = np.where(arr_step, 1, 0)
-        else:
-            arr_step = copy.deepcopy(time_arr)
-
-        display(arr_step)
-
-    arr_step = game_of_life_step(arr_step)
-    for row in arr_step:
-        pass#print(row)
-    display(arr_step, time_arr)
-
-'''
-
-timestamp = "Hi Marie"
-time_arr = np.array([0 for i in range(max_height)])
-time_arr = time_arr.reshape((max_height, 1))
-
-for c in str(timestamp):
-    # if c != '.':
-    #    time_arr = np.concatenate((time_arr, num_dict[c]), axis=1)
-    # else:
-    tmp_arr = np.array(
-        [[0 for i in range(num_dict[c].shape[1])] for j in range(max_height - num_dict[c].shape[0])])
-    try:
-        num_dict[c] = np.concatenate((tmp_arr, num_dict[c]))
-    except:
-        pass
-
-    time_arr = np.concatenate((time_arr, num_dict[c]), axis=1)
-    time_arr = np.concatenate((time_arr, np.array([[0] for x in range(max_height)])), axis=1)
-time_arr = np.pad(time_arr, 5)
-arr_step = copy.deepcopy(time_arr)
-
-while True:
-    print(
-        '_______________________________________________________'
-        '_______________________________________________________')
-    time.sleep(0.5)
-
+    last_step = copy.deepcopy(arr_step)
     arr_step = game_of_life_step(arr_step)
 
-    display(arr_step, time_arr)
-'''
+    surf_step = pygame.surfarray.make_surface(arr_step.T)
+    surf_last_step = pygame.surfarray.make_surface(last_step.T)
+    surf_background = pygame.surfarray.make_surface(arr_step.T)
+    surf_time = pygame.surfarray.make_surface(time_arr.T)
+
+    surf_time.set_colorkey(pygame.Color(0, 0, 0))
+    surf_step.set_colorkey(pygame.Color(0, 0, 0))
+    surf_last_step.set_colorkey(pygame.Color(0, 0, 0))
+
+    surf_background.fill(pygame.Color(192, 192, 192))
+
+    surf_time.set_alpha(125)
+    for alpha in range(0, 101, int(100/transition_frames)):
+        surf_step.set_alpha(alpha*2.55)
+        surf_last_step.set_alpha((100 - alpha)*2.55)
+        display.blits(((x_zoom(surf_background), (0, 0), None),
+                       ((x_zoom(surf_step)), (0, 0), None),
+                       ((x_zoom(surf_last_step)), (0, 0), None),
+                       ((x_zoom(surf_time)), (0, 0), None)))
+        pygame.display.update()
+
+    time.sleep(1/ticks_per_seconds)
